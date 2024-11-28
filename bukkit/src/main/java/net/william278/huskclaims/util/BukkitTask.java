@@ -19,6 +19,7 @@
 
 package net.william278.huskclaims.util;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import net.william278.huskclaims.BukkitHuskClaims;
 import net.william278.huskclaims.HuskClaims;
 import org.jetbrains.annotations.NotNull;
@@ -26,8 +27,12 @@ import space.arim.morepaperlib.scheduling.GracefulScheduling;
 import space.arim.morepaperlib.scheduling.ScheduledTask;
 
 import java.time.Duration;
+import java.util.concurrent.*;
 
 public interface BukkitTask extends Task {
+    ExecutorService executor =  new ThreadPoolExecutor(5, Integer.MAX_VALUE,
+            2L, TimeUnit.MINUTES,
+            new SynchronousQueue<>(), new ThreadFactoryBuilder().setNameFormat("HuskClaims Async Thread - %1$d").build());
 
     class Sync extends Task.Sync implements BukkitTask {
 
@@ -68,7 +73,7 @@ public interface BukkitTask extends Task {
 
     class Async extends Task.Async implements BukkitTask {
 
-        private ScheduledTask task;
+        private Future<?> task;
 
         protected Async(@NotNull HuskClaims plugin, @NotNull Runnable runnable) {
             super(plugin, runnable);
@@ -77,7 +82,7 @@ public interface BukkitTask extends Task {
         @Override
         public void cancel() {
             if (task != null && !cancelled) {
-                task.cancel();
+                task.cancel(true);
             }
             super.cancel();
         }
@@ -90,7 +95,7 @@ public interface BukkitTask extends Task {
             }
 
             if (!cancelled) {
-                this.task = getScheduler().asyncScheduler().run(runnable);
+                this.task = executor.submit(runnable);
             }
         }
     }
